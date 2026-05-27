@@ -1,7 +1,7 @@
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
-
+#
 
 class RecommendationByMenteeRequest(BaseModel):
     mentee_id: str = Field(..., description="ID конкретного менти из mentees.json")

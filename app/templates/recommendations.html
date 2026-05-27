@@ -228,7 +228,7 @@
             <div class="field">
                 <label for="menteeSelect">Менти</label>
                 <select id="menteeSelect">
-                    <option value="">Выберите менти</option>
+                    <option value="">Выберитe менти</option>
                     {% for mentee in mentees %}
                         <option value="{{ mentee.id }}">
                             {{ mentee.id }} — {{ mentee.name or "без имени" }} — {{ mentee.profile_completeness or "unknown" }}
