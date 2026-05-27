@@ -208,7 +208,7 @@ YANDEX_CLOUD_BASE_URL=https://ai.api.cloud.yandex.net/v1
 Пример:
 
 ```env
-YANDEX_CLOUD_FOLDER=kd43fpri4tpphhrobco
+YANDEX_CLOUD_FOLDER=kd43reri4gpprhrobco
 YANDEX_CLOUD_API_KEY=<API_key_value>
 YANDEX_CLOUD_MODEL=yandexgpt-5-lite/latest
 YANDEX_CLOUD_BASE_URL=https://ai.api.cloud.yandex.net/v1
