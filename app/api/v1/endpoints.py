@@ -8,6 +8,7 @@ from app.models.v1.recommendation import (
     RecommendationResponse,
 )
 from app.services.json_storage import get_mentee_by_id, load_mentees, load_mentors
+from app.services.mentor_selection_for_llm import select_mentors_for_llm
 from app.services.personalized_pagerank_service import (
     PersonalizedPageRankRecommendationService,
 )
