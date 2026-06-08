@@ -409,6 +409,20 @@
 
     function renderAlgorithmMeta(data) {
         const raw = data.raw_model_response || {};
+        const candidateSelection = raw.candidate_selection;
+
+        if (candidateSelection) {
+            const ranker = candidateSelection.ranker || {};
+
+            return `
+                <div class="meta">
+                    <span class="meta-item">Отправлено в YandexGPT: ${valueOrDash(candidateSelection.selected_mentors_count)} из ${valueOrDash(candidateSelection.input_mentors_count)}</span>
+                    <span class="meta-item">Лимит кандидатов: ${valueOrDash(candidateSelection.candidate_limit)}</span>
+                    <span class="meta-item">Отбор: Personalized PageRank</span>
+                    <span class="meta-item">PageRank сошелся: ${ranker.converged ? "да" : "нет"}</span>
+                </div>
+            `;
+        }
 
         if (raw.algorithm !== "personalized_pagerank") {
             return "";
@@ -505,7 +519,9 @@
         }
 
         recommendButton.disabled = true;
-        statusBlock.innerHTML = `<div class="loading">${algorithmTitle(algorithm)} подбирает менторов. Подождите...</div>`;
+        statusBlock.innerHTML = algorithm === "yandex-gpt"
+            ? `<div class="loading">Сначала выбираем 20 кандидатов из общего пула, затем отправляем их в YandexGPT. Подождите...</div>`
+            : `<div class="loading">${algorithmTitle(algorithm)} подбирает менторов. Подождите...</div>`;
         resultBlock.innerHTML = "";
 
         try {

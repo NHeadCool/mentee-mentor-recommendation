@@ -8,6 +8,7 @@ from app.models.v1.recommendation import (
     RecommendationResponse,
 )
 from app.services.json_storage import get_mentee_by_id, load_mentees, load_mentors
+from app.services.llm_candidate_selector import LLMCandidateSelector
 from app.services.personalized_pagerank_service import (
     PersonalizedPageRankRecommendationService,
 )
@@ -43,18 +44,26 @@ async def recommend_from_json_files(
     request: RecommendationByMenteeRequest,
 ) -> RecommendationResponse:
     mentee = get_mentee_by_id(request.mentee_id)
+    mentors = load_mentors()
 
-    # Отправляем первые 30 менторов (ограничение API Yandex).
-    mentors = load_mentors()[:30]
+    candidate_selection = LLMCandidateSelector().select(
+        mentee=mentee,
+        mentors=mentors,
+    )
 
     prompt = build_yandex_gpt_recommendation_prompt(
         mentee=mentee,
-        mentors=mentors,
+        mentors=candidate_selection.mentors,
         top_n=request.top_n,
     )
 
     service = YandexGPTService()
-    return await service.get_recommendations(prompt)
+    response = await service.get_recommendations(prompt)
+    response.raw_model_response = {
+        **(response.raw_model_response or {}),
+        "candidate_selection": candidate_selection.metadata,
+    }
+    return response
 
 
 @router.post(
