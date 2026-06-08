@@ -1,0 +1,14 @@
+profile_completeness: "high"   — почти полный профиль
+profile_completeness: "medium" — часть важных полей отсутствует
+profile_completeness: "low"    — профиль сильно неполный
+
+
+mentees.json:
+high   — 481
+medium — 360
+low    — 361
+
+mentors.json:
+high   — 405
+medium — 307
+low    — 303
