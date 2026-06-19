@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 #
@@ -6,6 +6,16 @@ from pydantic import BaseModel, Field
 class RecommendationByMenteeRequest(BaseModel):
     mentee_id: str = Field(..., description="ID конкретного менти из mentees.json")
     top_n: int = Field(default=5, ge=1, le=20)
+
+
+class YandexGPTRecommendationRequest(RecommendationByMenteeRequest):
+    candidate_selector: Literal["filters", "pagerank"] | None = Field(
+        default=None,
+        description=(
+            "Способ предварительного отбора кандидатов для YandexGPT. "
+            "Если не указан, используется LLM_CANDIDATE_SELECTOR из настроек."
+        ),
+    )
 
 
 class PersonalizedPageRankRequest(RecommendationByMenteeRequest):

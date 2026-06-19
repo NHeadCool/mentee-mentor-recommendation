@@ -4,9 +4,10 @@ from fastapi.templating import Jinja2Templates
 
 from app.models.v1.recommendation import (
     PersonalizedPageRankRequest,
-    RecommendationByMenteeRequest,
     RecommendationResponse,
+    YandexGPTRecommendationRequest,
 )
+from app.core.config import settings
 from app.services.json_storage import get_mentee_by_id, load_mentees, load_mentors
 from app.services.llm_candidate_selector import LLMCandidateSelector
 from app.services.personalized_pagerank_service import (
@@ -41,12 +42,14 @@ async def recommendations_ui(request: Request) -> HTMLResponse:
     response_model=RecommendationResponse,
 )
 async def recommend_from_json_files(
-    request: RecommendationByMenteeRequest,
+    request: YandexGPTRecommendationRequest,
 ) -> RecommendationResponse:
     mentee = get_mentee_by_id(request.mentee_id)
     mentors = load_mentors()
 
-    candidate_selection = LLMCandidateSelector().select(
+    candidate_selection = LLMCandidateSelector(
+        strategy=request.candidate_selector or settings.llm_candidate_selector,
+    ).select(
         mentee=mentee,
         mentors=mentors,
     )

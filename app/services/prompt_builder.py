@@ -2,11 +2,38 @@ import json
 from typing import Any
 
 
+DISPLAY_ONLY_MENTEE_FIELDS = {
+    "request_scenario",
+    "help_format",
+    "urgency",
+    "motivation",
+    "expected_result",
+}
+DISPLAY_ONLY_MENTOR_FIELDS = {
+    "request_scenarios",
+    "help_formats",
+}
+
+
+def _without_fields(profile: dict[str, Any], excluded_fields: set[str]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in profile.items()
+        if key not in excluded_fields
+    }
+
+
 def build_yandex_gpt_recommendation_prompt(
     mentee: dict[str, Any],
     mentors: list[dict[str, Any]],
     top_n: int,
 ) -> str:
+    algorithm_mentee = _without_fields(mentee, DISPLAY_ONLY_MENTEE_FIELDS)
+    algorithm_mentors = [
+        _without_fields(mentor, DISPLAY_ONLY_MENTOR_FIELDS)
+        for mentor in mentors
+    ]
+
     return f"""
 Подбери top-{top_n} менторов для одного менти.
 
@@ -42,8 +69,8 @@ def build_yandex_gpt_recommendation_prompt(
 - Не оборачивай JSON в markdown-блоки ```json или ```.
 
 Менти:
-{json.dumps(mentee, ensure_ascii=False, indent=2)}
+{json.dumps(algorithm_mentee, ensure_ascii=False, indent=2)}
 
 Кандидаты-менторы:
-{json.dumps(mentors, ensure_ascii=False, indent=2)}
+{json.dumps(algorithm_mentors, ensure_ascii=False, indent=2)}
 """.strip()

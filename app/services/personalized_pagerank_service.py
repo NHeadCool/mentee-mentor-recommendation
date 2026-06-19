@@ -253,7 +253,6 @@ class PersonalizedPageRankRecommendationService:
         text_parts = [
             mentee.get("goal"),
             mentee.get("problem_description"),
-            mentee.get("expected_result"),
             mentee.get("preferred_mentor_background"),
         ]
         features.extend(self._extract_text_features(text_parts, known_terms, 2.8))

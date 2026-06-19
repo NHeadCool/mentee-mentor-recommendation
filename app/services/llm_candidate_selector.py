@@ -2,12 +2,19 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.models.v1.recommendation import PersonalizedPageRankRequest
+from app.services.filter_candidate_selector import select_filter_candidates
 from app.services.personalized_pagerank_service import (
     PersonalizedPageRankRecommendationService,
 )
 
 
 DEFAULT_LLM_CANDIDATE_LIMIT = 20
+CANDIDATE_SELECTOR_FILTERS = "filters"
+CANDIDATE_SELECTOR_PAGERANK = "pagerank"
+SUPPORTED_CANDIDATE_SELECTORS = {
+    CANDIDATE_SELECTOR_FILTERS,
+    CANDIDATE_SELECTOR_PAGERANK,
+}
 
 
 @dataclass(frozen=True)
@@ -20,9 +27,16 @@ class LLMCandidateSelector:
     def __init__(
         self,
         limit: int = DEFAULT_LLM_CANDIDATE_LIMIT,
+        strategy: str = CANDIDATE_SELECTOR_FILTERS,
         ranker: PersonalizedPageRankRecommendationService | None = None,
     ) -> None:
         self.limit = limit
+        self.strategy = strategy.strip().lower()
+        if self.strategy not in SUPPORTED_CANDIDATE_SELECTORS:
+            raise ValueError(
+                f"Unsupported candidate selector: {strategy}. "
+                f"Expected one of: {sorted(SUPPORTED_CANDIDATE_SELECTORS)}"
+            )
         self.ranker = ranker or PersonalizedPageRankRecommendationService()
 
     def select(
@@ -30,11 +44,23 @@ class LLMCandidateSelector:
         mentee: dict[str, Any],
         mentors: list[dict[str, Any]],
     ) -> CandidateSelectionResult:
+        candidate_limit = min(
+            max(1, self.limit),
+            DEFAULT_LLM_CANDIDATE_LIMIT,
+            len(mentors),
+        ) if mentors else 0
+
         if not mentors:
+            algorithm = (
+                "hard_filters_and_weighted_scoring"
+                if self.strategy == CANDIDATE_SELECTOR_FILTERS
+                else "personalized_pagerank"
+            )
             return CandidateSelectionResult(
                 mentors=[],
                 metadata={
-                    "algorithm": "personalized_pagerank",
+                    "algorithm": algorithm,
+                    "strategy": self.strategy,
                     "input_mentors_count": 0,
                     "candidate_limit": 0,
                     "selected_mentors_count": 0,
@@ -42,11 +68,36 @@ class LLMCandidateSelector:
                 },
             )
 
-        candidate_limit = min(
-            max(1, self.limit),
-            DEFAULT_LLM_CANDIDATE_LIMIT,
-            len(mentors),
-        )
+        if self.strategy == CANDIDATE_SELECTOR_FILTERS:
+            selection = select_filter_candidates(
+                mentee=mentee,
+                mentors=mentors,
+                limit=candidate_limit,
+            )
+            return CandidateSelectionResult(
+                mentors=selection.mentors,
+                metadata={
+                    "algorithm": "hard_filters_and_weighted_scoring",
+                    "strategy": CANDIDATE_SELECTOR_FILTERS,
+                    "input_mentors_count": len(mentors),
+                    "filtered_mentors_count": selection.filtered_mentors_count,
+                    "candidate_limit": candidate_limit,
+                    "selected_mentors_count": len(selection.mentors),
+                    "selected_mentor_ids": [
+                        str(mentor.get("id")) for mentor in selection.mentors
+                    ],
+                    "hard_filters": [
+                        "language",
+                        "budget",
+                        "availability",
+                        "level",
+                        "format",
+                    ],
+                    "rejection_counts": selection.rejection_counts,
+                    "top_local_scores": selection.scores,
+                },
+            )
+
         request = PersonalizedPageRankRequest(
             mentee_id=str(mentee.get("id")),
             top_n=candidate_limit,
@@ -71,6 +122,7 @@ class LLMCandidateSelector:
             mentors=selected_mentors,
             metadata={
                 "algorithm": "personalized_pagerank",
+                "strategy": CANDIDATE_SELECTOR_PAGERANK,
                 "input_mentors_count": len(mentors),
                 "candidate_limit": candidate_limit,
                 "selected_mentors_count": len(selected_mentors),

@@ -262,6 +262,16 @@
                 </div>
             </div>
 
+            <div id="yandexGptFields" class="algorithm-fields hidden">
+                <div class="field">
+                    <label for="candidateSelector">Отбор кандидатов для YandexGPT</label>
+                    <select id="candidateSelector">
+                        <option value="filters">Фильтры + weighted scoring</option>
+                        <option value="pagerank">Personalized PageRank</option>
+                    </select>
+                </div>
+            </div>
+
             <button id="recommendButton" disabled>
                 Сделать рекомендацию
             </button>
@@ -286,6 +296,8 @@
     const topNInput = document.getElementById("topN");
     const algorithmSelect = document.getElementById("algorithmSelect");
     const pagerankFields = document.getElementById("pagerankFields");
+    const yandexGptFields = document.getElementById("yandexGptFields");
+    const candidateSelector = document.getElementById("candidateSelector");
     const dampingFactorInput = document.getElementById("dampingFactor");
     const maxIterationsInput = document.getElementById("maxIterations");
     const recommendButton = document.getElementById("recommendButton");
@@ -335,7 +347,8 @@
                         <p><b>ID:</b> ${valueOrDash(mentee.id)}</p>
                         <p><b>Имя:</b> ${valueOrDash(mentee.name)}</p>
                         <p><b>Заполненность профиля:</b> ${valueOrDash(mentee.profile_completeness)}</p>
-                        <p><b>Сценарий теста:</b> ${valueOrDash(mentee.test_scenario)}</p>
+                        <p><b>Сценарий запроса:</b> ${valueOrDash(mentee.request_scenario)}</p>
+                        <p><b>Формат помощи:</b> ${valueOrDash(mentee.help_format)}</p>
                         <p><b>Цель:</b> ${valueOrDash(mentee.goal)}</p>
                         <p><b>Текущая роль:</b> ${valueOrDash(mentee.current_role)}</p>
                         <p><b>Целевая роль:</b> ${valueOrDash(mentee.target_role)}</p>
@@ -348,12 +361,17 @@
                         <p><b>Часовой пояс:</b> ${valueOrDash(mentee.timezone)}</p>
                         <p><b>Доступность:</b> ${valueOrDash(mentee.availability)}</p>
                         <p><b>Бюджет:</b> ${valueOrDash(mentee.budget)}</p>
+                        <p><b>Срочность:</b> ${valueOrDash(mentee.urgency)}</p>
+                        <p><b>Мотивация:</b> ${valueOrDash(mentee.motivation)}</p>
                         <p><b>Коммуникационные предпочтения:</b> ${valueOrDash(mentee.communication_preferences)}</p>
                     </div>
                 </div>
 
                 <p><b>Описание проблемы:</b></p>
                 <p>${valueOrDash(mentee.problem_description)}</p>
+
+                <p><b>Ожидаемый результат:</b></p>
+                <p>${valueOrDash(mentee.expected_result)}</p>
 
                 <p><b>Навыки для развития:</b></p>
                 ${renderTags(mentee.skills_to_develop)}
@@ -400,6 +418,12 @@
 
             <p><b>Форматы:</b></p>
             ${renderTags(mentor.formats)}
+
+            <p><b>Сценарии запроса:</b></p>
+            ${renderTags(mentor.request_scenarios)}
+
+            <p><b>Форматы помощи:</b></p>
+            ${renderTags(mentor.help_formats)}
         `;
     }
 
@@ -413,13 +437,19 @@
 
         if (candidateSelection) {
             const ranker = candidateSelection.ranker || {};
+            const usesPageRank = candidateSelection.strategy === "pagerank";
+            const selectionTitle = usesPageRank
+                ? "Personalized PageRank"
+                : "Фильтры + weighted scoring";
 
             return `
                 <div class="meta">
                     <span class="meta-item">Отправлено в YandexGPT: ${valueOrDash(candidateSelection.selected_mentors_count)} из ${valueOrDash(candidateSelection.input_mentors_count)}</span>
                     <span class="meta-item">Лимит кандидатов: ${valueOrDash(candidateSelection.candidate_limit)}</span>
-                    <span class="meta-item">Отбор: Personalized PageRank</span>
-                    <span class="meta-item">PageRank сошелся: ${ranker.converged ? "да" : "нет"}</span>
+                    <span class="meta-item">Отбор: ${selectionTitle}</span>
+                    ${usesPageRank
+                        ? `<span class="meta-item">PageRank сошелся: ${ranker.converged ? "да" : "нет"}</span>`
+                        : `<span class="meta-item">После фильтров: ${valueOrDash(candidateSelection.filtered_mentors_count)}</span>`}
                 </div>
             `;
         }
@@ -494,6 +524,7 @@
 
     function updateAlgorithmFields() {
         pagerankFields.classList.toggle("hidden", algorithmSelect.value !== "pagerank");
+        yandexGptFields.classList.toggle("hidden", algorithmSelect.value !== "yandex-gpt");
     }
 
     menteeSelect.addEventListener("change", () => {
@@ -520,7 +551,7 @@
 
         recommendButton.disabled = true;
         statusBlock.innerHTML = algorithm === "yandex-gpt"
-            ? `<div class="loading">Сначала выбираем 20 кандидатов из общего пула, затем отправляем их в YandexGPT. Подождите...</div>`
+            ? `<div class="loading">Сначала выбираем до 20 кандидатов из общего пула, затем отправляем их в YandexGPT. Подождите...</div>`
             : `<div class="loading">${algorithmTitle(algorithm)} подбирает менторов. Подождите...</div>`;
         resultBlock.innerHTML = "";
 
@@ -536,6 +567,8 @@
             if (algorithm === "pagerank") {
                 body.damping_factor = Number(dampingFactorInput.value || 0.85);
                 body.max_iterations = Number(maxIterationsInput.value || 120);
+            } else {
+                body.candidate_selector = candidateSelector.value;
             }
 
             const response = await fetch(endpoint, {
